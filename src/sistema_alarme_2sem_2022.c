@@ -4,9 +4,9 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <string.h>
+#include <stdio.h>
 #include "serial.h"
 #include "lcd_display.h"
-//#include <LiquidCrystal_I2C.h>
 
 #define BETA 3950
 
@@ -26,7 +26,7 @@
 char valorA, valorB, anteriorA=0, anteriorB=0, estadoA=0, estadoB=0,valorBtnAlarme;
 char estadoAlarme=0;
 char isZonaAAtiva=0, isZonaBAtiva=0;
-int temperatura, tempCelsius=23;//já começa com um padrão de tempr. ambiente
+uint8_t temperatura, tempCelsius=24,tmpTemp;//já começa com um padrão de tempr. ambiente
 char situacaoPortaSala=0,situacaoJanSala=0,situacaoQuarto1=0,situacaoQuarto2=0,*strTemperatura="";
 uint8_t estadoPortaSala=0,estadoJanSala=0,estadoQuarto1=0,estadoQuarto2=0;
 
@@ -74,9 +74,11 @@ int main(){
 
    while(1){
 		 reseta();
+		 leTemperatura();
 		 exibeTudo(741);
 	 }
 }
+
 
 //ZONAS
 ISR(PCINT0_vect) {
@@ -117,7 +119,7 @@ ISR(PCINT0_vect) {
 
 //ABRIR e FECHAR JANELAS/PORTAS
 ISR(PCINT1_vect){
-	leTemperatura();
+	//leTemperatura();
 
 	//PINOS ANAlÓGICOS USADOS COMO DIGITAIS CITADOS ACIMA
 	
@@ -149,21 +151,26 @@ void leTemperatura(){
   temperatura = ADC;
 	tempCelsius = 1 / (log(1 / (1023.0 / temperatura - 1)) / BETA + 1.0 / 298.15) - 273.15;
 	
-	Serial.print("Temperatura: ");
-	Serial.print(tempCelsius);
-	transmiteBytesString(" C\n");
-	_delay_ms(50);
-	//fflush(stdout);
 	if(tempCelsius>30.0){
 		acionaAlarme();
 	}
+
+	//TODO funciona o monitor serial direitinho
+	//essas funcoes de baixo também chamam sprintf
+	char stringTemperatura[20] = {F("Temperatura: ")};
+
+	transmiteBytesString(stringTemperatura);
+	transmiteBytesInteger(tmpTemp);
+	transmiteBytesString(" C\n");
+	//_delay_ms(50);
+	//fflush(stdout);
 }
 
 void acionaAlarme(){
 	PORTB |= BZR_ALARME;//liga alarme pino 12
 	transmiteBytesString("ALARMEEEEEEEE!\n");
 	estadoAlarme=1;
-	_delay_ms(25);
+	//_delay_ms(25);
 }
 
 void espera_ms(unsigned char ms){
@@ -174,10 +181,12 @@ void espera_ms(unsigned char ms){
 }
 
 void printaTemperatura(unsigned int tempo_ms){
-	sprintf(strTemperatura,"%d",tempCelsius); //TALVEZ NAO SEJA A MELHOR FX
+	//sprintf(strTemperatura,"%d",tempCelsius); //TALVEZ NAO SEJA A MELHOR FX
+	tmpTemp=tempCelsius;
+	dtostrf(tempCelsius,2,2,strTemperatura);
 	LCD_PrintXY(0,0,"Temp ");
-	LCD_Print(strTemperatura);
-	sprintf(strTemperatura, "%c", 0b11011111);
+	//LCD_Print(tempCelsius);
+	//sprintf(strTemperatura, "%c", 0b11011111);
 	LCD_Print(strTemperatura);
 	LCD_PrintXY(8,0," C");
 	strTemperatura="";
@@ -190,7 +199,7 @@ void reseta(){
 	_delay_ms(50);
 
 	if(valorBtnAlarme){
-		PORTB &= ~(1<<PORTB4);
+		PORTB &= ~BZR_ALARME;
 		_delay_ms(50);
 
 		estadoA=0;
@@ -204,6 +213,7 @@ void reseta(){
 }
 
 void exibeTudo(unsigned int ms){
+	//TODO quando comenta essas 3 linhas, funciona o monitor serial corretamente
 	LCD_Clear();
 	printaTemperatura(341);
 	_delay_ms(ms);
