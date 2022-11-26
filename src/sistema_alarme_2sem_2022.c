@@ -26,8 +26,9 @@
 char valorA, valorB, anteriorA=0, anteriorB=0, estadoA=0, estadoB=0,valorBtnAlarme;
 char estadoAlarme=0;
 char isZonaAAtiva=0, isZonaBAtiva=0;
-uint8_t temperatura, tempCelsius=24,tmpTemp;//já começa com um padrão de tempr. ambiente
-char situacaoPortaSala=0,situacaoJanSala=0,situacaoQuarto1=0,situacaoQuarto2=0,*strTemperatura="";
+int temperatura, tempCelsius=24;//já começa com um padrão de tempr. ambiente
+char situacaoPortaSala=0,situacaoJanSala=0,situacaoQuarto1=0,situacaoQuarto2=0;
+char strTemperatura[20]={""};
 uint8_t estadoPortaSala=0,estadoJanSala=0,estadoQuarto1=0,estadoQuarto2=0;
 
 int main(){
@@ -48,9 +49,7 @@ int main(){
 
    DDRB |= (1 << DDB2) | (1<<DDB3) | (1 << DDB4); //
    DDRB &= ~(1 << DDB0) & ~(1 << DDB1) & ~(1 << DDB5);
-   //DDRD &= ~(1 << DDD2) & ~(1<<DDD3);
    DDRC &= ~(1<<PC5) & ~(1<<PC4) & ~(1<<PC3) & ~(1<<PC1);
-   //DDRD |= (1 << DDD2) | (1 << DDD3) | (1 << DDD4)| (1 << DDD5)| (1 << DDD6)| (1 << DDD7);
 
 	/*EICRA |= (1 << ISC00) | (1 << ISC01) | (1 << ISC10) | (1 << ISC11);
    //EICRA |= (1 << ISC00) | (1 << ISC01)| (1 << ISC10)| (1 << ISC11);
@@ -67,6 +66,7 @@ int main(){
  	PCMSK0 |= (1 << PCINT0) | (1 << PCINT1);
 	PCMSK1 |= (1 << PCINT9) | (1 << PCINT11)| (1 << PCINT12) | (1 << PCINT13);
   SREG |= (1 << SREG_I);  //HABILITANDO INTERRUP.
+
   //REGISTRADORES ADC
 	ADMUX = (1 << REFS0);
   ADCSRA = (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0)| (1 << ADEN);
@@ -74,7 +74,6 @@ int main(){
 
    while(1){
 		 reseta();
-		 leTemperatura();
 		 exibeTudo(741);
 	 }
 }
@@ -144,7 +143,7 @@ ISR(PCINT1_vect){
 	}
 }
 
-void leTemperatura(){
+int leTemperatura(){
 	
 	ADCSRA |= (1 << ADSC);
   while ((ADCSRA & (1 << ADSC)) != 0);
@@ -155,15 +154,10 @@ void leTemperatura(){
 		acionaAlarme();
 	}
 
-	//TODO funciona o monitor serial direitinho
-	//essas funcoes de baixo também chamam sprintf
-	char stringTemperatura[20] = {F("Temperatura: ")};
-
-	transmiteBytesString(stringTemperatura);
-	transmiteBytesInteger(tmpTemp);
+	transmiteBytesString("Temperatura: ");
+	transmiteBytesInteger(tempCelsius);
 	transmiteBytesString(" C\n");
-	//_delay_ms(50);
-	//fflush(stdout);
+	return tempCelsius;
 }
 
 void acionaAlarme(){
@@ -181,18 +175,18 @@ void espera_ms(unsigned char ms){
 }
 
 void printaTemperatura(unsigned int tempo_ms){
-	//sprintf(strTemperatura,"%d",tempCelsius); //TALVEZ NAO SEJA A MELHOR FX
-	tmpTemp=tempCelsius;
-	dtostrf(tempCelsius,2,2,strTemperatura);
+	//TODO estas duas funções de conversão chamam o monitor serial sem eu mandar
+	sprintf(strTemperatura,"%d",leTemperatura()); //TALVEZ NAO SEJA A MELHOR FX
+	//dtostrf(leTemperatura(),2,2,strTemperatura);
+	
 	LCD_PrintXY(0,0,"Temp ");
-	//LCD_Print(tempCelsius);
-	//sprintf(strTemperatura, "%c", 0b11011111);
+	//sprintf(strTemperatura, "%c", 0b11011111); // '°' character
 	LCD_Print(strTemperatura);
 	LCD_PrintXY(8,0," C");
-	strTemperatura="";
 }
 
-//aperte/segure o botão até desligar o alarme
+//aperte/segure o botão até desligar o alarme 
+	//(exceto se a temperatura ainda estiver muito alta)
 void reseta(){
 	//reseta os estados e para o alarme
 	valorBtnAlarme = ((PINB & (1 << PINB5)) == (1 << PINB5));
@@ -213,7 +207,6 @@ void reseta(){
 }
 
 void exibeTudo(unsigned int ms){
-	//TODO quando comenta essas 3 linhas, funciona o monitor serial corretamente
 	LCD_Clear();
 	printaTemperatura(341);
 	_delay_ms(ms);
@@ -225,13 +218,11 @@ void exibeTudo(unsigned int ms){
 	LCD_Clear();
 	printaComodos();
 	_delay_ms(ms);
-	//exibe zonas delay de 2000ms
-	//tempr
-	//exibe comodos , se der  e delay 2000
-	//tempr
-	//dentro do while true
 }
-
+//===============================================================
+//monitoramento portas e janelas On = ativo , Off = desativado
+// porta ou janela  A = aberta  F = fechada
+//===============================================================
 void printaZonas(){
 	char *znA = "-";
 	char *znB = "-";
