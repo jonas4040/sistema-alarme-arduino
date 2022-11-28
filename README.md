@@ -4,7 +4,7 @@
 Sistema de alarme simples simulando sensores que detectam abertura/fechamento de portas/janelas, utilizando Linguagem C para o ATMEGA328P do Arduino Uno R3.
 
 ### Escopo funcional / Lista de materiais: 
-![Casa fictícia](./images/home.png)
+![Casa fictícia](./images/home.jpg)
 - 4 Sensores para detectar a Abertura/Fechamento de portas e janelas.
 - 1 Sensor analógico de temperatura.
 - 1 Botão para Ativar/Desativar o Alarme.
